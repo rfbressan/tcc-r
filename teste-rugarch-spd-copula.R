@@ -9,6 +9,7 @@
 ###############################################################################
 
 library(rugarch)
+library(rmgarch)
 #library(parallel) # rugarch carrega parallel
 library(spd)
 library(copula)
@@ -16,7 +17,7 @@ library(psych) # para o comando pairs.panel se quiser utilizar
 library(xts)
 library(tidyverse)
 
-setwd("C:\\Users\\rfbre\\Documents\\UDESC\\TCC\\TCC Latex svn\\TCC-R-codes")
+#setwd("C:/Users/rfbre/Documents/UDESC/TCC/tcc-r")
 
 ################################################################################################################
 ## Aquisicao de dados e calculo do xts com os retornos

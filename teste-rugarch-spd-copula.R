@@ -221,4 +221,4 @@ rm(cl)
 # Matrizes presigma, preresiduals e prereturns apenas das n_roll ultimas observacoes
 presigma <- tail(sigma(gfilter), n = n_roll)
 preresiduals <- tail(residuals(gfilter), n = n_roll)
-prereturns <- tail(fitted(gfilter), n = n_roll)
+prereturns <- tail(coredata(ret), n = n_roll) # Retornos observados

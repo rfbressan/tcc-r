@@ -8,6 +8,13 @@
 ## 
 ###############################################################################
 
+###############################################################################
+## TODO List
+# [ ] Definir ordens do ARMA e GARCH (ie. p, q, r e s?)
+# [ ] Verificar goodness of fit do GARCH antes de ajustar a Copula
+# [ ] Verificar goodness of fit da Copula
+###############################################################################
+
 library(rugarch)
 library(rmgarch)
 #library(parallel) # rugarch carrega parallel
@@ -41,6 +48,7 @@ ret <- merge(r_msft, r_ge, join = "inner") # Retornos dos 2 ativos em um xts ape
 d <- ncol(ret)            # Dimensao da copula = numero de ativos
 n_ahead <- 10             # Numero de dias a frente a serem simulados
 m_sim <- 5              # Numero de simulacoes a serem feitas para cada ativo/dia a frente. Monte Carlo
+n_roll <- 12              # Numero de dias a serem rolados na janela movel
 wport <- rep(1/d, d)      # Portfolio de pesos iguais
 labels <- c("MSFT", "GE") # Nome dos ativos para apresentar nos graficos
 
@@ -62,8 +70,12 @@ uspec <- ugarchspec(variance.model = list(model = "sGARCH",
 # Deve-se criar um cluster com a funcao makeCluster e repassa-lo a multifit. Entao ao final do fit
 # nao esquecer de fechar o cluster.
 cl <- makeCluster(detectCores()) # No meu windows 10 core i7 clusters = 4
+# multifit eh metodo de rugarch. Devolve um uGARCHmultifit que contém uma lista de d elementos
+# um para cada ativo ajustado. uGARCHfit para cada ativo.
+# Depois para usar multifilter colocar este out.sample e n.old = length(ret)-n_ahead-2
 gfit.list <- multifit(multispec(replicate(d, uspec)),
                       ret,
+                      out.sample = n_roll,
                       cluster = cl)
 
 # Finaliza o cluster criado
@@ -153,7 +165,7 @@ for(i in 1:m_sim){
 ################################################################################################################
 
 # A matriz distfit deve ter ordem [n.sim x m.sim]
-# Objeo sim sera uma lista de dimensao igual ao numero de ativos, cada qual com informacoes sobre a simulacao
+# Objeto sim sera uma lista de dimensao igual ao numero de ativos, cada qual com informacoes sobre a simulacao
 # realizada.
 sim <- lapply(1:d, function(j)
   ugarchsim(gfit.list@fit[[j]], n.sim = n_ahead, m.sim = m_sim, startMethod = "sample",
@@ -195,4 +207,18 @@ rm(list = ls())
 ## entao talvez seja possivel utilizar estas matrizes para fazer a simulacao de monte carlo
 ## em uma janela movel.
 ## multiforecast serve para fazer previsao um passo a frente e ir rolando. tem opcao n_ahead
+cl <- makeCluster(detectCores())
+gfilter <- multifilter(gfit.list, 
+                       data = coredata(ret),
+                       out.sample = 0,
+                       n.old = nrow(ret) - n_roll,
+                       cluster = cl)
 
+# Finaliza o cluster criado
+stopCluster(cl)
+rm(cl)
+
+# Matrizes presigma, preresiduals e prereturns apenas das n_roll ultimas observacoes
+presigma <- tail(sigma(gfilter), n = n_roll)
+preresiduals <- tail(residuals(gfilter), n = n_roll)
+prereturns <- tail(fitted(gfilter), n = n_roll)
